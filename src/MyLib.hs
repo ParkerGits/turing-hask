@@ -190,7 +190,7 @@ printResults :: (Either String Bool, [Configuration]) -> IO ()
 printResults (results, configurations) = do
   mapM_ (putStrLn . show) $ configurations
   case results of
-    Left error -> putStrLn $ error <> " Rejects."
+    Left error -> putStrLn error
     Right accepts -> if accepts then putStrLn "Accepts!" else putStrLn "Rejects."
 
 machineFromJSON :: MachineInput -> TuringMachine
@@ -210,7 +210,9 @@ transitionFromJSON deltas = \q b -> do
   case Map.lookup q map of
     Nothing -> throwError $ "Unrecognized state: " <> q
     Just transitions -> case Map.lookup b transitions of
-      Nothing -> throwError $ "Invalid transition " <> show b <> " from state " <> q <> "."
+      Nothing ->
+        throwError $
+          "Invalid transition " <> show b <> " from state " <> q <> ". Rejects."
       Just result -> return result
  where
   constructFromToMap deltas =
