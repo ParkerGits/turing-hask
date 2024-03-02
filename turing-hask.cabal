@@ -30,7 +30,7 @@ library
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
     build-depends:
-        base >=4.19,
+        base >=4.17,
         containers,
         mtl,
         aeson,
@@ -48,7 +48,7 @@ executable turing-hask
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
     build-depends:
-        base >=4.19,
+        base >=4.17,
         turing-hask
 
     hs-source-dirs:   app

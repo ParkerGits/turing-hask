@@ -9,10 +9,9 @@ import Control.Monad.Except
 import Control.Monad.Writer
 import Data.Aeson (FromJSON, ToJSON, eitherDecode)
 import qualified Data.ByteString.Lazy as BL
-import Data.List (intercalate, intersperse, uncons, unsnoc)
+import Data.List (intercalate, intersperse, uncons)
 import qualified Data.Map as Map
 import Data.Maybe
-import Debug.Trace
 import GHC.Generics (Generic)
 import Options.Applicative (
   Parser,
@@ -88,7 +87,7 @@ instance Show Configuration where
     intercalate
       ""
       [ join $ map show $ left config
-      , ("(q" <> (headState config) <> ")")
+      , "(q" <> headState config <> ")"
       , join $ map show $ right config
       ]
 
@@ -132,7 +131,7 @@ compute m config =
 
 yield :: TuringMachine -> Configuration -> Eval Configuration
 yield m config =
-  let b = fromMaybe Blank $ (fst <$> (uncons $ right config))
+  let b = maybe Blank fst (uncons $ right config)
       q = headState config
    in do
         (q', b', direction) <- transition m q b
@@ -161,6 +160,8 @@ moveLeft q b config =
       Just (_, rs) ->
         let config' = Configuration ls q (l : b : rs)
          in newConfig config'
+ where
+  unsnoc = foldr (\x -> Just . maybe ([], x) (\(~(a, b)) -> (x : a, b))) Nothing
 
 moveRight :: MachineState -> Symbol -> Configuration -> Eval Configuration
 moveRight q b config = case uncons $ right config of
@@ -188,7 +189,7 @@ nothingToBlank Nothing = Blank
 
 printResults :: (Either String Bool, [Configuration]) -> IO ()
 printResults (results, configurations) = do
-  mapM_ (putStrLn . show) $ configurations
+  mapM_ print configurations
   case results of
     Left error -> putStrLn error
     Right accepts -> if accepts then putStrLn "Accepts!" else putStrLn "Rejects."
@@ -217,24 +218,20 @@ transitionFromJSON deltas = \q b -> do
  where
   constructFromToMap deltas =
     Map.fromList
-      <$> ( sequence $
-              map
-                ( \delta -> do
-                    toResult <- constructToResultMap $ to delta
-                    return (from delta, toResult)
-                )
-                deltas
-          )
+      <$> mapM
+        ( \delta -> do
+            toResult <- constructToResultMap $ to delta
+            return (from delta, toResult)
+        )
+        deltas
   constructToResultMap transitions =
     Map.fromList
-      <$> ( sequence $
-              map
-                ( \to -> do
-                    res <- parseResult $ result to
-                    return (charToSymbol $ on to, res)
-                )
-                transitions
-          )
+      <$> mapM
+        ( \to -> do
+            res <- parseResult $ result to
+            return (charToSymbol $ on to, res)
+        )
+        transitions
 
 charToSymbol :: Char -> Symbol
 charToSymbol '_' = Blank
@@ -257,7 +254,7 @@ parseResult [q, b, direction] = case uncons b of
 parseResult s =
   throwError $
     "Result values should be 3-tuples of [State, Symbol, Direction]. Received: "
-      <> (join ["[", intercalate "," s, "]"])
+      <> join ["[", intercalate "," s, "]"]
 
 runMachine ::
   TuringMachine -> String -> IO (Either String Bool, [Configuration])
@@ -292,7 +289,7 @@ testMachine =
 runTest :: IO ()
 runTest = runMachine testMachine "0000" >>= printResults
 
-data Options = Options
+newtype Options = Options
   { input :: String
   }
 
